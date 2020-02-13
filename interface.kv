@@ -1,0 +1,143 @@
+#:import NoTransition kivy.uix.screenmanager.NoTransition
+#:import Factory kivy.factory.Factory
+#:import __ __main__.__
+
+
+<ScreenManager>:
+    transition: NoTransition(duration=0)
+    Files:
+        name: "files"
+    Reader:
+        name: "reader"
+
+<Files>:
+    canvas.before:
+        Color:
+            rgba: 1, 1, 1, 1
+        Rectangle:
+            pos: self.pos
+            size: self.size
+    BoxLayout:
+        size: root.size
+        pos: root.pos
+        orientation: "vertical"
+        AnchorLayout:
+            anchor_x: "right"
+            anchor_y: "bottom"
+            padding: root.width*0.01, root.height*0.01
+            size_hint_y: None
+            height: 100
+            Button:
+                text: __._("Open")
+                bold: True
+                size_hint: None, None
+                size: 100, 50
+                background_normal: ""
+                background_color: 0, 0.68359375, 0.98046875, 1
+                on_press: Factory.OpenDialog().open()
+
+<Reader>:
+    canvas.before:
+        Color:
+            rgba: 1, 1, 1, 1
+        Rectangle:
+            pos: self.pos
+            size: self.size
+    BoxLayout:
+        orientation: "vertical"
+        padding: root.width*0.025, root.height*0.01
+        spacing: "100dp"
+        BoxLayout:
+            orientation: "vertical"
+            size_hint_y: None
+            height: 130
+            BoxLayout:
+                size_hint_y: None
+                height: 40
+                Label:
+                    text: __._("Speed")
+                    color: 0, 0, 0, 1
+                Slider:
+                    id: slider_speed
+                    min: 20
+                    max: 1000
+                    step: 1
+                Label:
+                    text: "{}wpm".format(int(slider_speed.value))
+                    color: 0, 0, 0, 1
+            BoxLayout:
+                size_hint_y: None
+                height: 40
+                Label:
+                    text: __._("Size")
+                    color: 0, 0, 0, 1
+                Slider:
+                    id: slider_size
+                    min: 10
+                    max: 150
+                    value: 50
+                    step: 1
+                Label:
+                    text: "{}px".format(int(slider_size.value))
+                    color: 0, 0, 0, 1
+            BoxLayout:
+                size_hint_y: None
+                height: 40
+                Label:
+                    text: __._("Image duration")
+                    color: 0, 0, 0, 1
+                Slider:
+                    id: slider_time
+                    min: 1
+                    max: 60
+                    value: 6
+                    step: 1
+                Label:
+                    text: "{}s".format(int(slider_time.value))
+                    color: 0, 0, 0, 1
+        BoxLayout:
+            ImageButton:
+                id: image_left
+                source: "images/left_arrow.png"
+                size_hint: 0.25, 0.25
+                pos_hint: {"center_x": .5, "center_y": .5}
+                on_press: root.back()
+            BoxLayout:
+                id: box
+            ImageButton:
+                id: image_right
+                source: "images/right_arrow.png"
+                size_hint: 0.25, 0.25
+                pos_hint: {"center_x": .5, "center_y": .5}
+                on_press: root.next()
+        Button:
+            id: on_off
+            text: __._("Start")
+            font_size: 15
+            bold: True
+            size_hint: None, None
+            size: 100, 50
+            pos_hint: {"center_x": .5, "center_y": .5}
+            background_normal: ""
+            background_color: 0, 0.68359375, 0.98046875, 1
+            on_press: root.read()
+
+<OpenDialog@Popup>:
+    title: __._("Open file")
+    size_hint: None, None
+    size: 500, 500
+    BoxLayout:
+        orientation: "vertical"
+        FileChooserListView:
+            id: file_chooser
+        BoxLayout:
+            size_hint_y: None
+            height: 50
+            Button:
+                text: __._("Cancel")
+                on_press: root.dismiss()
+            Button:
+                text: __._("Open")
+                on_press:
+                    root.dismiss()
+                    app.root.get_screen("files").load(file_chooser.selection)
