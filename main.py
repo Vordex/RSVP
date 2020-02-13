@@ -3,6 +3,7 @@ from kivy.clock import Clock
 from kivy.core.image import Image as CoreImage
 from kivy.lang import Observable
 from kivy.lang.builder import Builder
+from kivy.uix.progressbar import ProgressBar
 from kivy.properties import StringProperty
 from kivy.uix.behaviors import ButtonBehavior
 from kivy.uix.boxlayout import BoxLayout
@@ -79,60 +80,95 @@ class Files(Screen):
     def __init__(self, **kwargs):
         super(Files, self).__init__(**kwargs)
 
-        self.popup = None
+        self.path = ""
+        self.file = ""
+        self.arq = None
+
+        self.box = BoxLayout(orientation="vertical")
+        self.popup = Popup()
+        self.file_chooser = FileChooserListView(dirselect=True)
+        self.input = TextInput(size_hint_y=None, height=30, multiline=False)
+
+        self.progress_bar = ProgressBar(max=100)
+        self.progress_label = Label()
+
+        self.loop = None
 
     def load(self, _file):
         if len(_file) == 1:
-            file = _file[0].split("\\")[-1]
+            self.file = _file[0].split("\\")[-1]
+            path = _file[0].split("\\")[0:-1]
 
-            if file.split(".")[-1] == "rsvp":
-                arq = rsvp.File(file)
+            for _dir in path:
+                self.path = f"{self.path}\\{_dir}"
+
+            if self.file.split(".")[-1] == "rsvp":
+                self.arq = rsvp.File(path, self.file)
                 self.manager.current = "reader"
-                self.manager.get_screen("reader").pre_read(arq)
+                self.manager.get_screen("reader").pre_read(self.arq)
 
-            elif file.split(".")[-1] == "pdf" or file.split(".")[-1] == "epub":
-                box = BoxLayout(orientation="vertical")
-                box2 = BoxLayout(size_hint_y=None, height=40)
-                box2.add_widget(Button(
+            elif self.file.split(".")[-1] == "pdf" or self.file.split(".")[-1] == "epub":
+                box = BoxLayout(size_hint_y=None, height=40)
+                box.add_widget(Button(
                     text=_("Convert"),
                     size_hint_y=None,
                     height=40,
                     on_press=lambda x: self.convert()
                 ))
                 button_cancel = Button(text=_("Cancel"), size_hint_y=None, height=40)
-                box2.add_widget(button_cancel)
-                box.add_widget(Label(text=_("You must convert this file to open it"), font_size=15))
-                box.add_widget(box2)
-                self.popup = Popup(title=_("Error"), content=box, size_hint=(None, None), size=(400, 200))
+                box.add_widget(button_cancel)
+                self.box.add_widget(Label(text=_("You must convert this file to open it"), font_size=15))
+                self.box.add_widget(box)
                 button_cancel.bind(on_press=self.popup.dismiss)
+                self.popup.title = _("Error")
+                self.popup.size_hint = (None, None)
+                self.popup.size = (400, 200)
+                self.popup.add_widget(self.box)
                 self.popup.open()
 
             else:
-                box = BoxLayout(orientation="vertical")
-                box.add_widget(Label(text=_("This file is not compatible"), font_size=15))
+                self.box.add_widget(Label(text=_("This file is not compatible"), font_size=15))
                 button_back = Button(text=_("Back"), size_hint_y=None, height=40)
-                box.add_widget(button_back)
+                self.box.add_widget(button_back)
                 popup = Popup(
                     title=_("Error"),
-                    content=box,
+                    content=self.box,
                     size_hint=(None, None), size=(400, 200)
                 )
                 button_back.bind(on_press=popup.dismiss)
                 popup.open()
 
     def convert(self):
-
         self.popup.dismiss()
         popup = Popup(title="Save", size_hint=[None, None], size=[500, 500])
         box = BoxLayout(orientation="vertical")
-        box.add_widget(FileChooserListView(dirselect=True))
-        box.add_widget(TextInput(size_hint_y=None, height=30, multiline=False))
+        box.add_widget(self.file_chooser)
+        box.add_widget(self.input)
         box2 = BoxLayout(size_hint_y=None, height=50)
         box2.add_widget(Button(text="Cancel", on_press=popup.dismiss))
-        box2.add_widget(Button(text="Save"))
+        box2.add_widget(Button(text="Save", on_press=lambda x: self.save()))
         box.add_widget(box2)
         popup.add_widget(box)
         popup.open()
+
+    def save(self):
+        self.popup.title = _("Converting file")
+        box = BoxLayout(orientation="vertical")
+        box.add_widget(self.progress_label)
+        box.add_widget(self.progress_bar)
+        self.popup.content = box
+        self.arq = rsvp.File(self.path, self.file, self.file_chooser.path, self.input.text, False)
+        self.loop = Clock.schedule_interval(lambda x: self.progress(), 0.05)
+        self.popup.open()
+
+    def progress(self):
+        self.progress_label.text = _("{}: completed").format(self.arq.progress)
+        self.progress_bar.value = self.arq.progress
+
+        if self.arq.progress == 100:
+            Clock.unschedule(self.loop)
+            self.popup.dismiss()
+            self.manager.get_screen("reader").pre_read(self.arq)
 
 
 class Reader(Screen):

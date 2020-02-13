@@ -5,19 +5,31 @@ import zipfile
 
 
 class File:
-    def __init__(self, file, existing=True):
+    def __init__(self, path, file, final_path=None, final_name=None, existing=True):
+        self.path = path
+        self.final_path = final_path
+
+        if self.final_path is None:
+            self.final_path = self.path
+
         self.file = file
-        self.filename = file.split(".")[0]
+
+        filename = self.file.split(".")[0]
+
+        self.final_name = final_name
+
+        if self.final_name is None:
+            self.final_name = filename
 
         if not existing:
             self.create()
-            self.file = f"{file.split('.')[0]}.rsvp"
+            self.file = f"{self.final_name}.rsvp"
 
         self.progress = -1
 
     def create(self):
-        with zipfile.ZipFile(f"files/{self.filename}.rsvp", "w", compression=zipfile.ZIP_DEFLATED) as zip_file:
-            document = fitz.Document(self.file)
+        with zipfile.ZipFile(f"{self.final_path}/{self.final_name}.rsvp", "w", compression=zipfile.ZIP_DEFLATED) as zip_file:
+            document = fitz.Document(f"{self.path}\\{self.file}")
 
             zip_file.writestr("info.txt", f"{document.metadata['title']}\n{document.metadata['author']}\n0")
             first_page = document.loadPage()
@@ -60,7 +72,7 @@ class File:
     def get_info(self):
         _info = {}
 
-        with zipfile.ZipFile(f"files/{self.file}") as zip_file:
+        with zipfile.ZipFile(f"{self.final_path}/{self.file}") as zip_file:
             with zip_file.open("info.txt") as info:
                 lines = info.readlines()
                 _info["name"] = lines[0].decode("utf-8").replace("\n", "")
@@ -70,7 +82,7 @@ class File:
         return _info
 
     def read_lines(self):
-        with zipfile.ZipFile(f"files/{self.file}") as zip_file:
+        with zipfile.ZipFile(f"{self.final_path}/{self.file}") as zip_file:
             with zip_file.open("content.txt") as content:
                 words = []
                 for word in content.readlines():
@@ -79,7 +91,7 @@ class File:
         return words
 
     def get_image(self, image):
-        with zipfile.ZipFile(f"files/{self.file}") as zip_file:
+        with zipfile.ZipFile(f"{self.final_path}/{self.file}") as zip_file:
             with zip_file.open(f"images/{image}") as file:
                 _image = BytesIO(base64.decodebytes(base64.b64encode(file.read())))
 
