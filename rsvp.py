@@ -4,6 +4,9 @@ from io import BytesIO
 import zipfile
 
 
+progress = 0
+
+
 class File:
     def __init__(self, path, file, final_path=None, final_name=None, existing=True):
         self.path = path
@@ -25,9 +28,9 @@ class File:
             self.create()
             self.file = f"{self.final_name}.rsvp"
 
-        self.progress = -1
-
     def create(self):
+        global progress
+
         with zipfile.ZipFile(f"{self.final_path}/{self.final_name}.rsvp", "w", compression=zipfile.ZIP_DEFLATED) as zip_file:
             document = fitz.Document(f"{self.path}\\{self.file}")
 
@@ -65,7 +68,7 @@ class File:
                             images_count += 1
 
                 pages_count += 1
-                self.progress = int(100 / number_pages * pages_count)
+                progress = int(100 / number_pages * pages_count)
 
             zip_file.writestr("content.txt", words[1:])
 

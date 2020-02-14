@@ -85,12 +85,9 @@ class Files(Screen):
         self.arq = None
 
         self.box = BoxLayout(orientation="vertical")
-        self.popup = Popup()
+        self.popup = Popup(title=_("Error"), size_hint=(None, None), size=(400, 200), auto_dismiss=False)
         self.file_chooser = FileChooserListView(dirselect=True)
         self.input = TextInput(size_hint_y=None, height=30, multiline=False)
-
-        self.progress_bar = ProgressBar(max=100)
-        self.progress_label = Label()
 
         self.loop = None
 
@@ -120,9 +117,6 @@ class Files(Screen):
                 self.box.add_widget(Label(text=_("You must convert this file to open it"), font_size=15))
                 self.box.add_widget(box)
                 button_cancel.bind(on_press=self.popup.dismiss)
-                self.popup.title = _("Error")
-                self.popup.size_hint = (None, None)
-                self.popup.size = (400, 200)
                 self.popup.add_widget(self.box)
                 self.popup.open()
 
@@ -140,7 +134,7 @@ class Files(Screen):
 
     def convert(self):
         self.popup.dismiss()
-        popup = Popup(title="Save", size_hint=[None, None], size=[500, 500])
+        popup = Popup(title="Save", size_hint=[None, None], size=[500, 500], auto_dismiss=False)
         box = BoxLayout(orientation="vertical")
         box.add_widget(self.file_chooser)
         box.add_widget(self.input)
@@ -152,23 +146,24 @@ class Files(Screen):
         popup.open()
 
     def save(self):
-        self.popup.title = _("Converting file")
+        popup = Popup(title=_("Converting file"))
         box = BoxLayout(orientation="vertical")
-        box.add_widget(self.progress_label)
-        box.add_widget(self.progress_bar)
-        self.popup.content = box
-        self.arq = rsvp.File(self.path, self.file, self.file_chooser.path, self.input.text, False)
-        self.loop = Clock.schedule_interval(lambda x: self.progress(), 0.05)
-        self.popup.open()
+        progress_bar = ProgressBar(max=100)
+        progress_label = Label()
+        box.add_widget(progress_label)
+        box.add_widget(progress_bar)
+        popup.add_widget(box)
+        arq = rsvp.File(self.path[1:], self.file, self.file_chooser.path, self.input.text, False)
+        popup.open()
 
-    def progress(self):
-        self.progress_label.text = _("{}: completed").format(self.arq.progress)
-        self.progress_bar.value = self.arq.progress
+        while True:
+            progress_label.text = _("{}% completed").format(rsvp.progress)
+            progress_bar.value = rsvp.progress
 
-        if self.arq.progress == 100:
-            Clock.unschedule(self.loop)
-            self.popup.dismiss()
-            self.manager.get_screen("reader").pre_read(self.arq)
+            if rsvp.progress == 100:
+                popup.dismiss()
+                self.manager.current = "reader"
+                self.manager.get_screen("reader").pre_read(arq)
 
 
 class Reader(Screen):
