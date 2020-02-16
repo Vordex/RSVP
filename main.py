@@ -1,7 +1,6 @@
 from kivy.app import App
 from kivy.clock import Clock
 from kivy.core.image import Image as CoreImage
-from kivy.lang import Observable
 from kivy.lang.builder import Builder
 from kivy.uix.progressbar import ProgressBar
 from kivy.properties import StringProperty
@@ -16,52 +15,14 @@ from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.uix.tabbedpanel import TabbedPanel
 from kivy.uix.textinput import TextInput
 
-import gettext
-import sqlite3
+import database
+import language
 import rsvp
 
-_ = gettext.gettext
+settings = database.Settings()
 
-conn = sqlite3.connect("settings.db")
-cursor = conn.cursor()
-
-
-class Lang(Observable):
-    observers = []
-    lang = None
-
-    def __init__(self, default_lang):
-        super(Lang, self).__init__()
-        self.ugettext = None
-        self.lang = default_lang
-        self.switch_lang(self.lang)
-
-    def _(self, text):
-        return self.ugettext(text)
-
-    def fbind(self, name, func, *largs, **kwargs):
-        if name == "_":
-            self.observers.append((func, largs, kwargs))
-        else:
-            return super(Lang, self).fbind(name, func, largs, kwargs)
-
-    def funbind(self, name, func, *largs, **kwargs):
-        if name == "_":
-            key = (func, largs, kwargs)
-            if key in self.observers:
-                self.observers.remove(key)
-        else:
-            return super(Lang, self).funbind(name, func, largs, kwargs)
-
-    def switch_lang(self, lang):
-        locales = gettext.translation(lang, "locales", languages=[lang])
-        self.ugettext = locales.gettext
-
-        for func, largs, kwargs in self.observers:
-            func(largs, None, None)
-
-
-__ = Lang("pt_BR")
+tr = language.Lang("pt_BR")
+_ = tr.gettext()
 
 
 class VReader(App):
@@ -73,7 +34,7 @@ class VReader(App):
 
     # noinspection PyMethodMayBeStatic
     def on_lang(self, lang):
-        __.switch_lang(lang)
+        tr.switch_lang(lang)
 
 
 class Files(Screen):
@@ -140,12 +101,12 @@ class Files(Screen):
         box.add_widget(self.input)
         box2 = BoxLayout(size_hint_y=None, height=50)
         box2.add_widget(Button(text="Cancel", on_press=popup.dismiss))
-        box2.add_widget(Button(text="Save", on_press=lambda x: self.save()))
+        box2.add_widget(Button(text="Save", on_press=lambda x: self.save(popup)))
         box.add_widget(box2)
         popup.add_widget(box)
         popup.open()
 
-    def save(self):
+    def save(self, _popup):
         popup = Popup(title=_("Converting file"))
         box = BoxLayout(orientation="vertical")
         progress_bar = ProgressBar(max=100)
@@ -162,8 +123,11 @@ class Files(Screen):
 
             if rsvp.progress == 100:
                 popup.dismiss()
+                _popup.dismiss()
                 self.manager.current = "reader"
                 self.manager.get_screen("reader").pre_read(arq)
+
+                break
 
 
 class Reader(Screen):
@@ -193,14 +157,9 @@ class Reader(Screen):
 
         self.image = Image64(self.file.get_image("cover.png"))
 
-        cursor.execute("""
-            SELECT * FROM settings;
-        """)
-        settings = cursor.fetchall()[0]
-
-        self.ids.slider_speed.value = settings[1]
-        self.ids.slider_size.value = settings[2]
-        self.ids.slider_time.value = settings[3]
+        self.ids.slider_speed.value = settings.speed
+        self.ids.slider_size.value = settings.size
+        self.ids.slider_time.value = settings.time
 
         Clock.schedule_interval(lambda x: self.update_size(), 0.05)
 
@@ -233,12 +192,7 @@ class Reader(Screen):
 
     def update_size(self):
         self.text.font_size = self.ids.slider_size.value
-        cursor.execute("""
-            UPDATE settings
-            SET speed = ?, size = ?, time = ?
-            WHERE id = ?
-        """, (self.ids.slider_speed.value, self.ids.slider_size.value, self.ids.slider_time.value, 1))
-        conn.commit()
+        settings.update(self.ids.slider_speed.value, self.ids.slider_size.value, self.ids.slider_time.value)
 
     def back(self):
         if self.ids.image_left.source != "images/left_arrow_disabled.png":
@@ -314,4 +268,4 @@ class Tabe(TabbedPanel):
 if __name__ == "__main__":
     VReader().run()
 
-    conn.close()
+    database.close()
