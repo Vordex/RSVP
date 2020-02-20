@@ -1,9 +1,11 @@
 import base64
+import database
 import fitz
 from io import BytesIO
 import zipfile
 
 
+settings = database.Settings()
 progress = 0
 
 
@@ -31,7 +33,9 @@ class File:
     def create(self):
         global progress
 
-        with zipfile.ZipFile(f"{self.final_path}/{self.final_name}.rsvp", "w", compression=zipfile.ZIP_DEFLATED) as zip_file:
+        file_zip = zipfile.ZipFile(f"{self.final_path}/{self.final_name}.rsvp", "w", compression=zipfile.ZIP_DEFLATED)
+
+        with file_zip as zip_file:
             document = fitz.Document(f"{self.path}\\{self.file}")
 
             zip_file.writestr("info.txt", f"{document.metadata['title']}\n{document.metadata['author']}\n0")

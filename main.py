@@ -2,8 +2,8 @@ from kivy.app import App
 from kivy.clock import Clock
 from kivy.core.image import Image as CoreImage
 from kivy.lang.builder import Builder
-from kivy.uix.progressbar import ProgressBar
 from kivy.properties import StringProperty
+from kivy.uix.progressbar import ProgressBar
 from kivy.uix.behaviors import ButtonBehavior
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
@@ -25,7 +25,7 @@ tr = language.Lang("pt_BR")
 _ = tr.gettext()
 
 
-class VReader(App):
+class RSVP(App):
     lang = StringProperty("pt_BR")
 
     def build(self):
@@ -58,10 +58,12 @@ class Files(Screen):
             path = _file[0].split("\\")[0:-1]
 
             for _dir in path:
-                self.path = f"{self.path}\\{_dir}"
+                self.path = f"{self.path}/{_dir}"
+
+            self.path = self.path[1:]
 
             if self.file.split(".")[-1] == "rsvp":
-                self.arq = rsvp.File(path, self.file)
+                self.arq = rsvp.File(self.path, self.file)
                 self.manager.current = "reader"
                 self.manager.get_screen("reader").pre_read(self.arq)
 
@@ -78,26 +80,23 @@ class Files(Screen):
                 self.box.add_widget(Label(text=_("You must convert this file to open it"), font_size=15))
                 self.box.add_widget(box)
                 button_cancel.bind(on_press=self.popup.dismiss)
-                self.popup.add_widget(self.box)
+                self.popup.content = self.box
                 self.popup.open()
 
             else:
                 self.box.add_widget(Label(text=_("This file is not compatible"), font_size=15))
                 button_back = Button(text=_("Back"), size_hint_y=None, height=40)
                 self.box.add_widget(button_back)
-                popup = Popup(
-                    title=_("Error"),
-                    content=self.box,
-                    size_hint=(None, None), size=(400, 200)
-                )
+                popup = Popup(title=_("Error"), content=self.box, size_hint=(None, None), size=(400, 200))
                 button_back.bind(on_press=popup.dismiss)
                 popup.open()
 
     def convert(self):
         self.popup.dismiss()
-        popup = Popup(title="Save", size_hint=[None, None], size=[500, 500], auto_dismiss=False)
+        popup = Popup(title="Save", size_hint=[0.75, 0.75], auto_dismiss=False)
         box = BoxLayout(orientation="vertical")
         box.add_widget(self.file_chooser)
+        self.input.text = self.file.split(".")[0]
         box.add_widget(self.input)
         box2 = BoxLayout(size_hint_y=None, height=50)
         box2.add_widget(Button(text="Cancel", on_press=popup.dismiss))
@@ -107,15 +106,15 @@ class Files(Screen):
         popup.open()
 
     def save(self, _popup):
-        popup = Popup(title=_("Converting file"))
+        popup = Popup(title=_("Converting file"), size_hint=[0.5, 0.5])
         box = BoxLayout(orientation="vertical")
         progress_bar = ProgressBar(max=100)
         progress_label = Label()
         box.add_widget(progress_label)
         box.add_widget(progress_bar)
         popup.add_widget(box)
-        arq = rsvp.File(self.path[1:], self.file, self.file_chooser.path, self.input.text, False)
         popup.open()
+        self.arq = rsvp.File(self.path[1:], self.file, self.file_chooser.path, self.input.text, existing=False)
 
         while True:
             progress_label.text = _("{}% completed").format(rsvp.progress)
@@ -125,7 +124,7 @@ class Files(Screen):
                 popup.dismiss()
                 _popup.dismiss()
                 self.manager.current = "reader"
-                self.manager.get_screen("reader").pre_read(arq)
+                self.manager.get_screen("reader").pre_read(self.arq)
 
                 break
 
@@ -140,10 +139,7 @@ class Reader(Screen):
         self.info = None
         self.position = None
 
-        self.text = Label(
-            color=[0, 0, 0, 1],
-            bold=True
-        )
+        self.text = Label(color=[0, 0, 0, 1], bold=True)
         self.image = None
 
         self.reading = False
@@ -235,9 +231,9 @@ class Reader(Screen):
                 Clock.schedule_once(lambda x: self.loop2(), 60 / self.ids.slider_speed.value)
 
     def loop2(self):
-        self.position += 1
         self.update()
         self.loop1()
+        self.position += 1
 
 
 class ImageButton(ButtonBehavior, Image):
@@ -266,6 +262,6 @@ class Tabe(TabbedPanel):
 
 
 if __name__ == "__main__":
-    VReader().run()
+    RSVP().run()
 
     database.close()
