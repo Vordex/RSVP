@@ -1,8 +1,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: \n"
-"POT-Creation-Date: 2020-02-17 18:13-0300\n"
-"PO-Revision-Date: 2020-02-17 18:13-0300\n"
+"POT-Creation-Date: 2020-02-26 11:44-0300\n"
+"PO-Revision-Date: 2020-02-26 11:45-0300\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "Language: pt_BR\n"
@@ -14,43 +14,74 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
 "X-Poedit-SearchPath-0: main.py\n"
 
-#: main.py:49 main.py:88
-msgid "Error"
-msgstr "Erro"
+#: main.py:41 main.py:298
+msgid "Start"
+msgstr "Iniciar"
 
-#: main.py:71
+#: main.py:42
+msgid "Open"
+msgstr "Abrir"
+
+#: main.py:43
+msgid "Image Duration"
+msgstr "Duração da imagem"
+
+#: main.py:44
+msgid "Size"
+msgstr "Tamanho"
+
+#: main.py:45
+msgid "Speed"
+msgstr "Velocidade"
+
+#: main.py:105
+msgid "Choose a name for the file"
+msgstr "Escolha um nome para o arquivo"
+
+#: main.py:107 main.py:166
 msgid "Convert"
 msgstr "Converter"
 
-#: main.py:76
+#: main.py:153 main.py:164 main.py:176 main.py:184
+msgid "Error"
+msgstr "Erro"
+
+#: main.py:156
+msgid "Sorry, it was not possible to open this file"
+msgstr "Desculpe, não foi possível abrir esse arquivo"
+
+#: main.py:165
+msgid "You need to convert this file"
+msgstr "Você precisa converter este arquivo"
+
+#: main.py:167
 msgid "Cancel"
 msgstr "Cancelar"
 
-#: main.py:78
-msgid "You must convert this file to open it"
-msgstr "Você deve converter este arquivo para abri-lo"
-
-#: main.py:85
+#: main.py:177
 msgid "This file is not compatible"
 msgstr "Este arquivo não é compatível"
 
-#: main.py:86
+#: main.py:178 main.py:186
 msgid "Back"
 msgstr "Voltar"
 
-#: main.py:106
+#: main.py:185
+msgid "Please select some file"
+msgstr "Por favor selecione algum arquivo"
+
+#: main.py:199
 msgid "Converting file"
 msgstr "Este arquivo não é compatível"
 
-#: main.py:117
+#: main.py:210
 #, python-format
 msgid "{}% completed"
 msgstr "{}% completo"
 
-#: main.py:202
+#: main.py:294
 msgid "Pause"
 msgstr "Pausar"
 
-#: main.py:206
-msgid "Start"
-msgstr "Iniciar"
+#~ msgid "Desculpe, não foi possivel abrir esse arquivo"
+#~ msgstr "Desculpe, não foi possivel abrir esse arquivo"

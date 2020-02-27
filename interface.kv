@@ -1,142 +1,140 @@
 #:import NoTransition kivy.uix.screenmanager.NoTransition
 #:import Factory kivy.factory.Factory
-#:import tr __main__.tr
+#:import _ __main__.kv_translate
 
 
 <ScreenManager>:
     transition: NoTransition(duration=0)
     Files:
         name: "files"
+    FileManager:
+        name: "file_manager"
     Reader:
         name: "reader"
 
 <Files>:
-    canvas.before:
-        Color:
-            rgba: 1, 1, 1, 1
-        Rectangle:
-            pos: self.pos
-            size: self.size
     BoxLayout:
         orientation: "vertical"
-        Menu:
+        MDToolbar:
+            id: toolbar
+            title: app.title
+            md_bg_color: app.theme_cls.primary_color
+            background_palette: "Primary"
+            elevation: 10
+            right_action_items: [["settings", lambda x: None]]
         ScrollView:
+        AnchorLayout:
+            padding: root.width*0.01, root.height*0.01
+            size_hint_y: None
+            height: 120
+            anchor_x: "right"
+            anchor_y: "bottom"
+            MDRaisedButton:
+                text: _.open
+                elevation_normal: 2
+                opposite_colors: True
+                font_size: 15
+                bold: True
+                size_hint: None, None
+                size: 100, 50
+                background_normal: ""
+                background_color: 0, 0.68359375, 0.98046875, 1
+                on_press: root.manager.get_screen("file_manager").open("files")
 
 <Reader>:
-    canvas.before:
-        Color:
-            rgba: 1, 1, 1, 1
-        Rectangle:
-            pos: self.pos
-            size: self.size
     BoxLayout:
         orientation: "vertical"
-        padding: root.width*0.025, root.height*0.01
-        spacing: "100dp"
+        pos_hint: {"top":1}
+        MDToolbar:
+            id: toolbar
+            title: app.title
+            md_bg_color: app.theme_cls.primary_color
+            background_palette: "Primary"
+            elevation: 10
+            right_action_items: [["close", lambda x: root.close()], ["settings", lambda x: None]]
         BoxLayout:
             orientation: "vertical"
-            size_hint_y: None
-            height: 130
+            padding: root.width*0.025, root.height*0.01
+            spacing: "100dp"
             BoxLayout:
+                orientation: "vertical"
                 size_hint_y: None
-                height: 40
-                Label:
-                    text: tr._("Speed")
-                    color: 0, 0, 0, 1
-                Slider:
-                    id: slider_speed
-                    min: 20
-                    max: 1000
-                    step: 1
-                Label:
-                    text: "{}wpm".format(int(slider_speed.value))
-                    color: 0, 0, 0, 1
+                height: 130
+                BoxLayout:
+                    size_hint_y: None
+                    height: 40
+                    MDLabel:
+                        text: _.speed
+                        markup: True
+                        halign: "center"
+                    MDSlider:
+                        id: slider_speed
+                        min: 20
+                        max: 1000
+                        step: 1
+                    MDLabel:
+                        text: "{}wpm".format(int(slider_speed.value))
+                        markup: True
+                        halign: "center"
+                BoxLayout:
+                    size_hint_y: None
+                    height: 40
+                    MDLabel:
+                        text: _.size
+                        markup: True
+                        halign: "center"
+                    MDSlider:
+                        id: slider_size
+                        min: 10
+                        max: 150
+                        value: 50
+                        step: 1
+                    MDLabel:
+                        text: "{}px".format(int(slider_size.value))
+                        markup: True
+                        halign: "center"
+                BoxLayout:
+                    size_hint_y: None
+                    height: 40
+                    MDLabel:
+                        text: _.image_duration
+                        markup: True
+                        halign: "center"
+                    MDSlider:
+                        id: slider_time
+                        min: 1
+                        max: 60
+                        value: 6
+                        step: 1
+                    MDLabel:
+                        text: "{}s".format(int(slider_time.value))
+                        markup: True
+                        halign: "center"
             BoxLayout:
-                size_hint_y: None
-                height: 40
-                Label:
-                    text: tr._("Size")
-                    color: 0, 0, 0, 1
-                Slider:
-                    id: slider_size
-                    min: 10
-                    max: 150
-                    value: 50
-                    step: 1
-                Label:
-                    text: "{}px".format(int(slider_size.value))
-                    color: 0, 0, 0, 1
-            BoxLayout:
-                size_hint_y: None
-                height: 40
-                Label:
-                    text: tr._("Image duration")
-                    color: 0, 0, 0, 1
-                Slider:
-                    id: slider_time
-                    min: 1
-                    max: 60
-                    value: 6
-                    step: 1
-                Label:
-                    text: "{}s".format(int(slider_time.value))
-                    color: 0, 0, 0, 1
-        BoxLayout:
-            ImageButton:
-                id: image_left
-                source: "images/left_arrow.png"
-                size_hint: 0.25, 0.25
+                MDIconButton:
+                    id: image_left
+                    icon: "chevron-left"
+                    elevation_normal: 2
+                    pos_hint: {"center_x": .5, "center_y": .5}
+                    on_press: root.back()
+                BoxLayout:
+                    id: box
+                MDIconButton:
+                    id: image_right
+                    icon: "chevron-right"
+                    elevation_normal: 2
+                    pos_hint: {"center_x": .5, "center_y": .5}
+                    on_press: root.next()
+            MDRaisedButton:
+                id: on_off
+                text: _.start
+                elevation_normal: 2
+                opposite_colors: True
+                font_size: 15
+                bold: True
+                size_hint: None, None
+                size: 100, 50
                 pos_hint: {"center_x": .5, "center_y": .5}
-                on_press: root.back()
-            BoxLayout:
-                id: box
-            ImageButton:
-                id: image_right
-                source: "images/right_arrow.png"
-                size_hint: 0.25, 0.25
-                pos_hint: {"center_x": .5, "center_y": .5}
-                on_press: root.next()
-        Button:
-            id: on_off
-            text: tr._("Start")
-            font_size: 15
-            bold: True
-            size_hint: None, None
-            size: 100, 50
-            pos_hint: {"center_x": .5, "center_y": .5}
-            background_normal: ""
-            background_color: 0, 0.68359375, 0.98046875, 1
-            on_press: root.read()
-
-<Menu@ActionBar>:
-    pos_hint: {"top":1}
-    background_image: "white_background.png"
-    background_color: 0, 0.68359375, 0.98046875, 1
-    ActionView:
-        ActionPrevious:
-            with_previous: False
-        ActionOverflow:
-        ActionButton:
-            text: tr._("Open")
-            on_press: Factory.OpenDialog().open()
-        ActionButton:
-            text: tr._("Settings")
-
-<OpenDialog@Popup>:
-    title: tr._("Open file")
-    size_hint: 0.75, 0.75
-    BoxLayout:
-        orientation: "vertical"
-        FileChooserListView:
-            id: file_chooser
-        BoxLayout:
-            size_hint_y: None
-            height: 50
-            Button:
-                text: tr._("Cancel")
-                on_press: root.dismiss()
-            Button:
-                text: tr._("Open")
-                on_press:
-                    root.dismiss()
-                    app.root.get_screen("files").load(file_chooser.selection)
+                background_normal: ""
+                background_color: 0, 0.68359375, 0.98046875, 1
+                on_press: root.read()

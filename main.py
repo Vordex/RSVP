@@ -1,128 +1,250 @@
-from kivy.app import App
 from kivy.clock import Clock
 from kivy.core.image import Image as CoreImage
+from kivy.core.window import Window
 from kivy.lang.builder import Builder
-from kivy.properties import StringProperty
+from kivy.lang import Observable
+from kivy.properties import BooleanProperty, ObjectProperty, StringProperty
 from kivy.uix.progressbar import ProgressBar
 from kivy.uix.behaviors import ButtonBehavior
 from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.button import Button
-from kivy.uix.filechooser import FileChooserListView
 from kivy.uix.image import Image
-from kivy.uix.label import Label
+from kivy.uix.modalview import ModalView
 from kivy.uix.popup import Popup
 from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.uix.tabbedpanel import TabbedPanel
 from kivy.uix.textinput import TextInput
+from kivy.utils import platform
+
+from kivymd.app import MDApp
+from kivymd.uix.dialog import MDDialog, MDInputDialog
+from kivymd.uix.filemanager import MDFileManager
+from kivymd.uix.label import Label
 
 import database
-import language
+from functools import partial
+import gettext
 import rsvp
 
 settings = database.Settings()
 
-tr = language.Lang("pt_BR")
-_ = tr.gettext()
+if settings.language == "en":
+    _ = gettext.gettext
+else:
+    locales = gettext.translation(settings.language, "locales", languages=[settings.language])
+    _ = locales.gettext
 
 
-class RSVP(App):
-    lang = StringProperty("pt_BR")
+class Words(Observable):
+    def __init__(self, **kwargs):
+        super(Words, self).__init__(**kwargs)
+
+        self.start = _("Start")
+        self.open = _("Open")
+        self.image_duration = _("Image Duration")
+        self.size = _("Size")
+        self.speed = _("Speed")
+
+
+kv_translate = Words()
+
+
+class RSVP(MDApp):
+    lang = StringProperty(settings.language)
+
+    def __init__(self, **kwargs):
+        super(RSVP, self).__init__(**kwargs)
+
+        self.title = "VReader"
+        self.theme_cls.primary_palette = "Blue"
+
+        Builder.load_string(open("interface.kv", encoding="utf-8").read(), rulesonly=True)
 
     def build(self):
-        Builder.load_string(open("interface.kv", encoding="utf-8").read(), rulesonly=True)
         return ScreenManager()
 
-    # noinspection PyMethodMayBeStatic
-    def on_lang(self, lang):
-        tr.switch_lang(lang)
+
+class FileManager(Screen):
+    manager_open = BooleanProperty()
+    _manager = ObjectProperty()
+    file_manager = ObjectProperty()
+
+    def __init__(self, **kwargs):
+        super(FileManager, self).__init__(**kwargs)
+
+        Window.bind(on_keyboard=self.events)
+
+        self.screen = ""
+        self.dir_select = False
+        self.name = ""
+
+    def open(self, screen, dir_select=False):
+        self.screen = screen
+        self.dir_select = dir_select
+
+        if dir_select:
+            dialog = MDDialog(
+                title="",
+                size_hint=(0.8, 0.4),
+                text_button_ok=_("Ok"),
+                text_button_cancel=_("Cancel"),
+                events_callback=partial(self._open, (screen, dir_select))
+            )
+            dialog.open()
+        else:
+            self.manager.current = "file_manager"
+
+            if not self._manager:
+                self._manager = ModalView(size_hint=(1, 1), auto_dismiss=False)
+                self.file_manager = MDFileManager(
+                    exit_manager=lambda x: self.exit_manager(),
+                    select_path=self.select_path
+                )
+                self._manager.add_widget(self.file_manager)
+
+            if platform == "win":
+                self.file_manager.show("C:/")
+            else:
+                self.file_manager.show("/")
+
+            self.manager_open = True
+            self._manager.open()
+
+    def _open(self, screen, *args):
+        self.manager.current = "file_manager"
+
+        if not self._manager:
+            self._manager = ModalView(size_hint=(1, 1), auto_dismiss=False)
+            self.file_manager = MDFileManager(
+                exit_manager=lambda x: self.exit_manager(),
+                select_path=self.select_path
+            )
+            self._manager.add_widget(self.file_manager)
+
+        if platform == "win":
+            self.file_manager.show("C:/")
+        else:
+            self.file_manager.show("/")
+
+        self.manager_open = True
+        self._manager.open()
+
+    def select_path(self, path):
+        if not self.dir_select:
+            self.exit_manager()
+            self.manager.get_screen(self.screen).load(path)
+        else:
+            if len(path.split("\\")[-1].split(".")) == 1:
+                dialog = MDInputDialog(
+                    title=_("Choose a name for the file"),
+                    hint_text="Teste",
+                    size_hint=(0.8, 0.4),
+                    text_button_ok=_("Convert"),
+                )
+                self.name = dialog.hint_text
+                dialog.events_callback = partial(self.select_name, (path,))
+                dialog.open()
+
+    def select_name(self, path, *args):
+        self.exit_manager()
+        self.manager.get_screen(self.screen).save(path, self.name)
+
+    def exit_manager(self):
+        self._manager.dismiss()
+        self.manager_open = False
+        self.manager.current = self.screen
+
+    def events(self, instance, keyboard, keycode, text, modifiers):
+        if keyboard in (1001, 27):
+            if self.manager_open:
+                self.file_manager.back()
+        return True
 
 
 class Files(Screen):
     def __init__(self, **kwargs):
         super(Files, self).__init__(**kwargs)
 
-        self.path = ""
         self.file = ""
         self.arq = None
 
         self.box = BoxLayout(orientation="vertical")
-        self.popup = Popup(title=_("Error"), size_hint=(None, None), size=(400, 200), auto_dismiss=False)
-        self.file_chooser = FileChooserListView(dirselect=True)
         self.input = TextInput(size_hint_y=None, height=30, multiline=False)
+        self.dialog = None
 
         self.loop = None
 
     def load(self, _file):
-        if len(_file) == 1:
-            self.file = _file[0].split("\\")[-1]
-            path = _file[0].split("\\")[0:-1]
+        self.file = _file
 
-            for _dir in path:
-                self.path = f"{self.path}/{_dir}"
+        if self.file.split(".")[-1] == "rsvp":
+            self.arq = rsvp.File(self.file)
+            self.manager.current = "reader"
 
-            self.path = self.path[1:]
-
-            if self.file.split(".")[-1] == "rsvp":
-                self.arq = rsvp.File(self.path, self.file)
-                self.manager.current = "reader"
+            try:
                 self.manager.get_screen("reader").pre_read(self.arq)
+            except KeyError:
+                dialog = Popup(
+                    title=_("Error"),
+                    size_hint=[None, None],
+                    size=[400, 200],
+                    content=Label(text=_("Sorry, it was not possible to open this file"))
+                )
+                dialog.open()
 
-            elif self.file.split(".")[-1] == "pdf" or self.file.split(".")[-1] == "epub":
-                box = BoxLayout(size_hint_y=None, height=40)
-                box.add_widget(Button(
-                    text=_("Convert"),
-                    size_hint_y=None,
-                    height=40,
-                    on_press=lambda x: self.convert()
-                ))
-                button_cancel = Button(text=_("Cancel"), size_hint_y=None, height=40)
-                box.add_widget(button_cancel)
-                self.box.add_widget(Label(text=_("You must convert this file to open it"), font_size=15))
-                self.box.add_widget(box)
-                button_cancel.bind(on_press=self.popup.dismiss)
-                self.popup.content = self.box
-                self.popup.open()
+                self.manager.current = "files"
 
+        elif self.file.split(".")[-1] == "pdf" or self.file.split(".")[-1] == "epub":
+            self.dialog = MDDialog(
+                title=_("Error"),
+                text=_("This file is not compatible"),
+                text_button_ok=_("Convert"),
+                text_button_cancel=_("Cancel"),
+                size_hint=(0.8, 0.3),
+                events_callback=self.convert
+            )
+            self.dialog.open()
+
+        else:
+            if len(self.file.split(".")[-1].split(".")) > 1:
+                dialog = MDDialog(
+                    title=_("Error"),
+                    text=_("This file is not compatible"),
+                    text_button_ok=_("Back"),
+                    size_hint=(0.8, 0.3),
+                )
+                dialog.open()
             else:
-                self.box.add_widget(Label(text=_("This file is not compatible"), font_size=15))
-                button_back = Button(text=_("Back"), size_hint_y=None, height=40)
-                self.box.add_widget(button_back)
-                popup = Popup(title=_("Error"), content=self.box, size_hint=(None, None), size=(400, 200))
-                button_back.bind(on_press=popup.dismiss)
-                popup.open()
+                dialog = MDDialog(
+                    title=_("Error"),
+                    text=_("Please select some file"),
+                    text_button_ok=_("Back"),
+                    size_hint=(0.8, 0.3),
+                )
+                dialog.open()
 
-    def convert(self):
-        self.popup.dismiss()
-        popup = Popup(title="Save", size_hint=[0.75, 0.75], auto_dismiss=False)
-        box = BoxLayout(orientation="vertical")
-        box.add_widget(self.file_chooser)
-        self.input.text = self.file.split(".")[0]
-        box.add_widget(self.input)
-        box2 = BoxLayout(size_hint_y=None, height=50)
-        box2.add_widget(Button(text="Cancel", on_press=popup.dismiss))
-        box2.add_widget(Button(text="Save", on_press=lambda x: self.save(popup)))
-        box.add_widget(box2)
-        popup.add_widget(box)
-        popup.open()
+    def convert(self, *args):
+        self.dialog.dismiss()
+        self.manager.get_screen("file_manager").open("files", True)
 
-    def save(self, _popup):
-        popup = Popup(title=_("Converting file"), size_hint=[0.5, 0.5])
+    def save(self, directory, name, *args):
+        directory = directory[0]
+
+        dialog = Popup(title=_("Converting file"), size_hint=[0.5, 0.5])
         box = BoxLayout(orientation="vertical")
         progress_bar = ProgressBar(max=100)
         progress_label = Label()
         box.add_widget(progress_label)
         box.add_widget(progress_bar)
-        popup.add_widget(box)
-        popup.open()
-        self.arq = rsvp.File(self.path[1:], self.file, self.file_chooser.path, self.input.text, existing=False)
+        dialog.add_widget(box)
+        dialog.open()
+        self.arq = rsvp.File(self.file, directory, name, existing=False)
 
         while True:
             progress_label.text = _("{}% completed").format(rsvp.progress)
             progress_bar.value = rsvp.progress
 
             if rsvp.progress == 100:
-                popup.dismiss()
-                _popup.dismiss()
+                dialog.dismiss()
                 self.manager.current = "reader"
                 self.manager.get_screen("reader").pre_read(self.arq)
 
@@ -163,16 +285,16 @@ class Reader(Screen):
 
     def update(self):
         if self.position == 0 or self.reading:
-            self.ids.image_left.source = "images/left_arrow_disabled.png"
+            self.ids.image_left.disabled = True
 
         else:
-            self.ids.image_left.source = "images/left_arrow.png"
+            self.ids.image_left.disabled = False
 
-        if self.position == self.len_words or self.reading:
-            self.ids.image_right.source = "images/right_arrow_disabled.png"
+        if self.position + 1 == self.len_words or self.reading:
+            self.ids.image_left.disabled = True
 
         else:
-            self.ids.image_right.source = "images/right_arrow.png"
+            self.ids.image_left.disabled = False
 
         if len(self.words[self.position].split()) > 1:
             self.ids.box.remove_widget(self.text)
@@ -191,12 +313,12 @@ class Reader(Screen):
         settings.update(self.ids.slider_speed.value, self.ids.slider_size.value, self.ids.slider_time.value)
 
     def back(self):
-        if self.ids.image_left.source != "images/left_arrow_disabled.png":
+        if not self.ids.image_left.disabled:
             self.position -= 1
             self.update()
 
     def next(self):
-        if self.ids.image_right.source != "images/right_arrow_disabled.png":
+        if not self.ids.image_right.disabled:
             self.position += 1
             self.update()
 
@@ -207,23 +329,25 @@ class Reader(Screen):
             self.loop1()
         else:
             self.ids.on_off.text = _("Start")
-            self.ids.image_left.source = "images/left_arrow.png"
-            self.ids.image_right.source = "images/right_arrow.png"
+            self.ids.image_left.disabled = False
+            self.ids.image_right.disabled = False
             self.reading = False
 
         if self.position == 0 or self.reading:
-            self.ids.image_left.source = "images/left_arrow_disabled.png"
+            self.ids.image_left.disabled = True
 
         else:
-            self.ids.image_left.source = "images/left_arrow.png"
+            self.ids.image_left.disabled = False
 
-        if self.position == self.len_words or self.reading:
-            self.ids.image_right.source = "images/right_arrow_disabled.png"
+        if self.position + 1 == self.len_words or self.reading:
+            self.ids.image_right.disabled = True
 
         else:
-            self.ids.image_right.source = "images/right_arrow.png"
+            self.ids.image_right.disabled = False
 
     def loop1(self):
+        if self.position == self.len_words:
+            self.read()
         if self.reading:
             if len(self.words[self.position].split()) > 1:
                 Clock.schedule_once(lambda x: self.loop2(), self.ids.slider_time.value)
@@ -234,6 +358,9 @@ class Reader(Screen):
         self.update()
         self.loop1()
         self.position += 1
+
+    def close(self):
+        self.manager.current = "files"
 
 
 class ImageButton(ButtonBehavior, Image):

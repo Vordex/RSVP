@@ -10,33 +10,30 @@ progress = 0
 
 
 class File:
-    def __init__(self, path, file, final_path=None, final_name=None, existing=True):
-        self.path = path
-        self.final_path = final_path
-
-        if self.final_path is None:
-            self.final_path = self.path
-
+    def __init__(self, file, final_path=None, final_name=None, existing=True):
         self.file = file
 
         filename = self.file.split(".")[0]
 
-        self.final_name = final_name
+        if final_name is None:
+            final_name = filename
 
-        if self.final_name is None:
-            self.final_name = filename
+        self.pre_file = self.file
 
         if not existing:
+            self.file = f"{final_path}/{final_name}.rsvp"
             self.create()
-            self.file = f"{self.final_name}.rsvp"
 
     def create(self):
         global progress
 
-        file_zip = zipfile.ZipFile(f"{self.final_path}/{self.final_name}.rsvp", "w", compression=zipfile.ZIP_DEFLATED)
+        print(self.file)
+
+        file_zip = zipfile.ZipFile(self.file, "w", compression=zipfile.ZIP_DEFLATED)
 
         with file_zip as zip_file:
-            document = fitz.Document(f"{self.path}\\{self.file}")
+            print(self.pre_file)
+            document = fitz.Document(self.pre_file)
 
             zip_file.writestr("info.txt", f"{document.metadata['title']}\n{document.metadata['author']}\n0")
             first_page = document.loadPage()
@@ -53,6 +50,7 @@ class File:
 
             for page in document.pages():
                 for block in page.getText("dict")["blocks"]:
+                    print(block)
                     if block["type"] == 0:
                         for line in block["lines"]:
                             for span in line["spans"]:
@@ -79,7 +77,7 @@ class File:
     def get_info(self):
         _info = {}
 
-        with zipfile.ZipFile(f"{self.final_path}/{self.file}") as zip_file:
+        with zipfile.ZipFile(self.file) as zip_file:
             with zip_file.open("info.txt") as info:
                 lines = info.readlines()
                 _info["name"] = lines[0].decode("utf-8").replace("\n", "")
@@ -89,7 +87,7 @@ class File:
         return _info
 
     def read_lines(self):
-        with zipfile.ZipFile(f"{self.final_path}/{self.file}") as zip_file:
+        with zipfile.ZipFile(self.file) as zip_file:
             with zip_file.open("content.txt") as content:
                 words = []
                 for word in content.readlines():
@@ -98,7 +96,7 @@ class File:
         return words
 
     def get_image(self, image):
-        with zipfile.ZipFile(f"{self.final_path}/{self.file}") as zip_file:
+        with zipfile.ZipFile(self.file) as zip_file:
             with zip_file.open(f"images/{image}") as file:
                 _image = BytesIO(base64.decodebytes(base64.b64encode(file.read())))
 
